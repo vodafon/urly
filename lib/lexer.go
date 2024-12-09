@@ -13,6 +13,7 @@ type StateType int
 const (
 	// Special tokens
 	TokenFullURL TokenType = iota
+	TokenCustomURL
 	TokenPathURL
 )
 
@@ -22,6 +23,11 @@ const (
 	StateHost
 	StatePath
 	StateParams
+)
+
+var (
+	httpW  []byte = []byte{104, 116, 116, 112}
+	httpsW []byte = []byte{104, 116, 116, 112, 115}
 )
 
 // Character class bitmaps
@@ -39,9 +45,10 @@ const (
 	sp5 uint16 = 0x25 // &
 	sp6 uint16 = 0x26 // '
 	sp7 uint16 = 0x27 // =
-	sp8 uint16 = 0x28 // !
-	sp9 uint16 = 0x28 // @
+	sp8 uint16 = 0x28 // ?
+	sp9 uint16 = 0x29 // @
 	sn0 uint16 = 0x30 // _
+	sn1 uint16 = 0x31 // +
 
 	eof uint16 = 0x40 // EOF
 )
@@ -53,7 +60,7 @@ var lookup = [257]uint16{
 	/* 10-17  DLE, DC1, DC2, DC3, DC4, NAK, SYN, ETB */ inv, inv, inv, inv, inv, inv, inv, inv,
 	/* 18-1F  CAN, EM,  SUB, ESC, FS,  GS,  RS,  US  */ inv, inv, inv, inv, inv, inv, inv, inv,
 	/* 21-27  SP ! " # $ % & '   */ inv, sp1, inv, sp2, sp3, sp4, sp5, sp6,
-	/* 28-2F   ( ) * + , - . /   */ inv, inv, inv, inv, inv, inv, vld, slh,
+	/* 28-2F   ( ) * + , - . /   */ inv, inv, inv, sn1, inv, vld, vld, slh,
 	/* 30-37   0 1 2 3 4 5 6 7   */ vld, vld, vld, vld, vld, vld, vld, vld,
 	/* 38-3F   8 9 : ; < = > ?   */ vld, vld, col, inv, inv, sp7, inv, sp8,
 	/* 40-47   @ A B C D E F G   */ sp9, vld, vld, vld, vld, vld, vld, vld,
@@ -89,19 +96,20 @@ type Token struct {
 }
 
 type Lexer struct {
-	input     []byte
-	scheme    []byte
-	schemeSep []byte
-	host      []byte
-	path      []byte
-	params    []byte
-	pos       int
-	width     int
-	size      int
-	start     int
-	stateType StateType
-	tokenType TokenType
-	tokens    chan Token
+	input      []byte
+	scheme     []byte
+	schemeWord []byte
+	schemeSep  []byte
+	host       []byte
+	path       []byte
+	params     []byte
+	pos        int
+	width      int
+	size       int
+	start      int
+	stateType  StateType
+	tokenType  TokenType
+	tokens     chan Token
 }
 
 func (obj *Lexer) run() {
@@ -114,14 +122,18 @@ func (obj *Lexer) run() {
 func (obj *Lexer) emit(t TokenType) {
 	// fullURL without host?
 	if obj.tokenType == TokenFullURL && len(obj.host) == 0 {
-		fmt.Print(1)
 		obj.emitUpdate()
 		return
 	}
 
 	// pathURL without path?
 	if obj.tokenType == TokenPathURL && len(obj.path) == 0 {
-		fmt.Print(2)
+		obj.emitUpdate()
+		return
+	}
+
+	// custom urls app:///path can be without host
+	if obj.tokenType == TokenCustomURL && (len(obj.path) == 0 && len(obj.host) == 0) {
 		obj.emitUpdate()
 		return
 	}
@@ -145,6 +157,7 @@ func (obj *Lexer) setAt(start, pos int) {
 	obj.stateType = StateScheme
 	obj.tokenType = TokenFullURL
 	obj.scheme = []byte{}
+	obj.schemeWord = []byte{}
 	obj.schemeSep = []byte{}
 	obj.host = []byte{}
 	obj.path = []byte{}
@@ -178,26 +191,59 @@ func (l *Lexer) next() uint16 {
 	return uint16(r)
 }
 
-func (l *Lexer) processSchemeValid(r byte) bool {
-	if lookup[r] == col {
+func (l *Lexer) processSchemeValid(r byte, s uint16) bool {
+	// fmt.Printf("SV1: %v %v %v\n", r, s, s == col)
+	if s == col {
 		l.schemeSep = append(l.schemeSep, r)
+		l.schemeWord = []byte{}
 		l.stateType = StateSchemeSep
 		// if scheme end with http/https we should cut prefix
-		if l.size > 6 && isHttpsWord(l.input[l.pos-6:l.pos-1]) {
+		if l.size > 5 && isHttpsWord(l.input[l.pos-6:l.pos-1]) {
 			l.start = l.pos - 6
 			l.size = l.pos - l.start
-		}
-		if l.size > 5 && isHttpWord(l.input[l.pos-5:l.pos-1]) {
+		} else if l.size > 4 && isHttpWord(l.input[l.pos-5:l.pos-1]) {
 			l.start = l.pos - 5
 			l.size = l.pos - l.start
+		} else {
+			l.tokenType = TokenCustomURL
 		}
 		return true
 	}
-	return isValidAll(r)
+	// fmt.Printf("SV2: %v %v %v\n", r, s, s == slh)
+	if s == slh {
+		l.startRelativePath(r)
+		return true
+	}
+	// valid, _
+	if s == vld || s == sn0 {
+		l.scheme = append(l.scheme, r)
+		l.schemeWord = append(l.schemeWord, r)
+		return true
+	}
+	// +
+	if s == sn1 {
+		l.scheme = append(l.scheme, r)
+		l.schemeWord = []byte{}
+		return true
+	}
+	return false
 }
 
-func (l *Lexer) processSchemeSepValid(r byte) bool {
-	s := lookup[r]
+func (l *Lexer) startRelativePath(r byte) {
+	l.path = append(l.path, r)
+	l.stateType = StatePath
+	if l.tokenType == TokenFullURL {
+		fmt.Printf("11: \n")
+		l.tokenType = TokenPathURL
+		l.start = l.pos - len(l.schemeWord) - 1
+		l.scheme = []byte{}
+		l.schemeWord = []byte{}
+		l.schemeSep = []byte{}
+		l.host = []byte{}
+	}
+}
+
+func (l *Lexer) processSchemeSepValid(r byte, s uint16) bool {
 	switch len(l.schemeSep) {
 	case 1:
 		if s == slh {
@@ -208,28 +254,39 @@ func (l *Lexer) processSchemeSepValid(r byte) bool {
 		if s == slh {
 			l.schemeSep = append(l.schemeSep, r)
 			l.stateType = StateHost
-			l.tokenType = TokenFullURL
 			return true
 		}
 	}
+	l.pos -= 1
 	return false
 }
 
-func (l *Lexer) processHostValid(r byte) bool {
-	if lookup[r] == slh {
+func (l *Lexer) processHostValid(r byte, s uint16) bool {
+	if s == slh {
+		// https:///x
+		if len(l.host) == 0 {
+			l.startRelativePath(r)
+			return true
+		}
 		l.path = append(l.path, r)
 		l.stateType = StatePath
 		return true
 	}
-	if isValidAll(r) {
+	// valid, @, :
+	if s == vld || s == sp9 || s == col {
 		l.host = append(l.host, r)
+		return true
+	}
+	// ?
+	if s == sp8 {
+		l.params = append(l.params, r)
+		l.stateType = StateParams
 		return true
 	}
 	return false
 }
 
-func (l *Lexer) processPathValid(r byte) bool {
-	s := lookup[r]
+func (l *Lexer) processPathValid(r byte, s uint16) bool {
 	if s == vld || s == slh {
 		l.path = append(l.path, r)
 		return true
@@ -243,24 +300,26 @@ func (l *Lexer) processPathValid(r byte) bool {
 	return false
 }
 
-func (l *Lexer) processParamsValid(r byte) bool {
-	return lookup[r] != inv
+func (l *Lexer) processParamsValid(r byte, s uint16) bool {
+	return s != inv
 }
 
 func (l *Lexer) isValid(r byte) bool {
+	s := lookup[r]
+	fmt.Printf("10: %v %v %v %v\n", r, s, l.stateType, l.tokenType)
 	switch l.stateType {
 	case StateScheme:
-		return l.processSchemeValid(r)
+		return l.processSchemeValid(r, s)
 	case StateSchemeSep:
-		return l.processSchemeSepValid(r)
+		return l.processSchemeSepValid(r, s)
 	case StateHost:
-		return l.processHostValid(r)
+		return l.processHostValid(r, s)
 	case StatePath:
-		return l.processPathValid(r)
+		return l.processPathValid(r, s)
 	case StateParams:
-		return l.processParamsValid(r)
+		return l.processParamsValid(r, s)
 	}
-	return isValidAll(r)
+	return s == vld
 }
 
 type stateFn func(*Lexer) stateFn
@@ -268,7 +327,6 @@ type stateFn func(*Lexer) stateFn
 func lexText(l *Lexer) stateFn {
 	for {
 		x := l.next()
-		// fmt.Printf("[TEXT2]: %q - %+v\n", r, *l)
 
 		if lookup[x] == eof {
 			break
@@ -297,13 +355,11 @@ func lexText(l *Lexer) stateFn {
 }
 
 func isHttpWord(word []byte) bool {
-	httpW := []byte{104, 116, 116, 112}
 	return bytes.Equal(word, httpW)
 }
 
 func isHttpsWord(word []byte) bool {
-	httpW := []byte{104, 116, 116, 112, 115}
-	return bytes.Equal(word, httpW)
+	return bytes.Equal(word, httpsW)
 }
 
 func isValidAll(ch byte) bool {

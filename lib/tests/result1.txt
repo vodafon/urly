@@ -9,4 +9,24 @@ https://abc.com/6/a/?x=3
 https://abc.com/6/a/?x=3
 http://abc.com/6/b?x=2
 https://abc.com/6/a/?x=4&r=2
+abc.com/6/b?x=2 ccc
 customvalid://abc.com
+http://user@abc.com/123
+http://user:pass@abc.com/123
+http://user:pass@abc.com:3000/123
+http://user:pass@abc.com:3000
+http://localhost:3000
+https://abc.com?x=4&r=2
+https://abc.com
+https://abc.com/
+https://192.168.0.3/?abc=13
+custom_scheme://path
+custom-scheme://path
+custom+scheme://path
+com.android.chrome://abc.com
+https://@/path/1/2?abc=13
+/path/1/2?abc=13
+/path/b1/b2?abc=13
+android-app:///webview?abc=13
+android-app:///web
+api/graphql
