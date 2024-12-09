@@ -1,0 +1,16 @@
+abc|https://abc.com|xyz
+abc|https://abc.com/bca|xyz
+abc|xxxxhttps://abc.com/2|xyz
+abc|xxxx.http://abc.com/3|xyz
+http://abc.com/4
+https://abc.com/5
+https://abc.com/6/a/?x=1
+https://abc.com/6/a/?x=3 uuu
+uuu @ https://abc.com/6/a/?x=3 uuu
+http://abc.com/6/b?x=2 ccc
+uuu @ https://abc.com/6/a/?x=4&r=2 uuu
+http:/abc.com/6/b?x=2 ccc
+https:/abc.com ccc
+https:abc.com ccc
+custominvalid:abc.com ccc
+customvalid://abc.com ccc

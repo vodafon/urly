@@ -1,0 +1,12 @@
+https://abc.com
+https://abc.com/bca
+https://abc.com/2
+http://abc.com/3
+http://abc.com/4
+https://abc.com/5
+https://abc.com/6/a/?x=1
+https://abc.com/6/a/?x=3
+https://abc.com/6/a/?x=3
+http://abc.com/6/b?x=2
+https://abc.com/6/a/?x=4&r=2
+customvalid://abc.com
