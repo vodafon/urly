@@ -39,7 +39,7 @@ const (
 
 	sp1 uint16 = 0x21 // !
 	sp2 uint16 = 0x22 // #
-	sp3 uint16 = 0x23 // #
+	sp3 uint16 = 0x23 // $
 	sp4 uint16 = 0x24 // %
 	sp5 uint16 = 0x25 // &
 	sp6 uint16 = 0x26 // '
@@ -285,7 +285,7 @@ func (l *Lexer) processHostValid(r byte, s uint16) bool {
 }
 
 func (l *Lexer) processPathValid(r byte, s uint16) bool {
-	if s == vld || s == slh {
+	if s == vld || s == slh || s == sp1 || s == sp4 || s == sn0 {
 		l.path = append(l.path, r)
 		return true
 	}

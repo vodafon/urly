@@ -33,3 +33,4 @@ https:///path/b1/b2?abc=13
 android-app:///webview?abc=13
 android-app:///web@view?abc=13
 api/graphql
+https://www.youtube.com/iframe_api
