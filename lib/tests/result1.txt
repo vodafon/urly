@@ -9,7 +9,7 @@ https://abc.com/6/a/?x=3
 https://abc.com/6/a/?x=3
 http://abc.com/6/b?x=2
 https://abc.com/6/a/?x=4&r=2
-abc.com/6/b?x=2 ccc
+abc.com/6/b?x=2
 customvalid://abc.com
 http://user@abc.com/123
 http://user:pass@abc.com/123

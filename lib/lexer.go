@@ -4,7 +4,6 @@ package lib
 
 import (
 	"bytes"
-	"fmt"
 )
 
 type TokenType int
@@ -233,7 +232,6 @@ func (l *Lexer) startRelativePath(r byte) {
 	l.path = append(l.path, r)
 	l.stateType = StatePath
 	if l.tokenType == TokenFullURL {
-		fmt.Printf("11: \n")
 		l.tokenType = TokenPathURL
 		l.start = l.pos - len(l.schemeWord) - 1
 		l.scheme = []byte{}
@@ -306,7 +304,7 @@ func (l *Lexer) processParamsValid(r byte, s uint16) bool {
 
 func (l *Lexer) isValid(r byte) bool {
 	s := lookup[r]
-	fmt.Printf("10: %v %v %v %v\n", r, s, l.stateType, l.tokenType)
+	// fmt.Printf("10: %v %v %v %v\n", r, s, l.stateType, l.tokenType)
 	switch l.stateType {
 	case StateScheme:
 		return l.processSchemeValid(r, s)
