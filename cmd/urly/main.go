@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"io"
@@ -68,21 +67,11 @@ func processFile(path string) {
 }
 
 func processReader(reader io.Reader) {
-	scanner := bufio.NewScanner(reader)
-	scanner.Split(bufio.ScanLines)
-
-	for scanner.Scan() {
-		res, err := lib.ExtractURL(scanner.Bytes())
-		if err != nil {
-			fmt.Println(err)
-		}
-		fmt.Print(string(res))
-	}
-
-	if err := scanner.Err(); err != nil {
+	res, err := lib.ExtractURL(reader)
+	if err != nil {
 		fmt.Println(err)
-		return
 	}
+	fmt.Print(string(res))
 }
 
 func walk(s string, d fs.DirEntry, err error) error {

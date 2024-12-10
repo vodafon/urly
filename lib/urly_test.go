@@ -11,7 +11,7 @@ import (
 
 func TestExtractURL(t *testing.T) {
 	// Open the file and read its contents
-	input, err := os.ReadFile("tests/input1.txt")
+	inputReader, err := os.Open("tests/input1.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -21,7 +21,7 @@ func TestExtractURL(t *testing.T) {
 	}
 
 	// Call our ExtractURL function with the input data
-	ret, err := ExtractURL(input)
+	ret, err := ExtractURL(inputReader)
 
 	// Check that the extracted URL matches the expected one
 	if !compareByteSlices(ret, result) {

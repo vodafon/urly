@@ -2,8 +2,10 @@
 
 package lib
 
-func ExtractURL(input []byte) ([]byte, error) {
-	lex := NewLexer(input)
+import "io"
+
+func ExtractURL(inputReader io.Reader) ([]byte, error) {
+	lex := NewLexer(inputReader)
 	res := []byte{}
 	for tok := range lex.tokens {
 		res = append(res, tok.Value...)

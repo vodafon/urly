@@ -4,6 +4,7 @@ package lib
 
 import (
 	"bytes"
+	"io"
 )
 
 type TokenType int
@@ -97,6 +98,7 @@ type Token struct {
 }
 
 type Lexer struct {
+	reader           io.Reader
 	input            []byte
 	scheme           []byte
 	schemeWord       []byte
@@ -104,6 +106,7 @@ type Lexer struct {
 	host             []byte
 	path             []byte
 	params           []byte
+	inputSize        int
 	schemeWordsCount int
 	hostWordsCount   int
 	pathWordsCount   int
@@ -114,6 +117,16 @@ type Lexer struct {
 	stateType        StateType
 	tokenType        TokenType
 	tokens           chan Token
+}
+
+func NewLexer(reader io.Reader) *Lexer {
+	l := &Lexer{
+		reader:    reader,
+		tokens:    make(chan Token),
+		tokenType: TokenFullURL,
+	}
+	go l.run()
+	return l
 }
 
 func (obj *Lexer) run() {
@@ -195,9 +208,16 @@ func (l *Lexer) peek() uint16 {
 }
 
 func (l *Lexer) next() uint16 {
-	if l.pos >= len(l.input) {
-		l.width = 0
-		return 256
+	if l.pos >= l.inputSize {
+		buf := make([]byte, 1000)
+		n, err := l.reader.Read(buf)
+		if err != nil {
+			l.width = 0
+			return 256
+		}
+		l.input = append(l.input, buf...)
+		l.inputSize += n
+		return l.next()
 	}
 	r := l.input[l.pos]
 	l.pos += 1
@@ -400,16 +420,6 @@ func isHttpsWord(word []byte) bool {
 
 func isValidAll(ch byte) bool {
 	return lookup[ch] == wrd
-}
-
-func NewLexer(input []byte) *Lexer {
-	l := &Lexer{
-		input:     input,
-		tokens:    make(chan Token),
-		tokenType: TokenFullURL,
-	}
-	go l.run()
-	return l
 }
 
 func toLowerASCII(b []byte) []byte {
