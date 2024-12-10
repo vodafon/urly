@@ -40,3 +40,8 @@ https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 /.git
 /graphql
 HTTPs://site.com/path?param=1
+/v0.1/api/Application/PARAM
+/v0.1/bank/exchange_plaid_public_token
+/accesscontextmanager.googleapis.com/accessPolicies/MY_POLICY_ID/accessLevels/MY_LEVEL
+/WRSiteInterceptEngine/MobileXmdDcfEval
+/WeRy177JKll98RanDoMsTriNg333WiThPaRaMs/?x=1
