@@ -32,7 +32,7 @@ var (
 // Character class bitmaps
 const (
 	inv uint16 = 0x00 // invalid for all
-	vld uint16 = 0x01 // valid for all
+	wrd uint16 = 0x01 // valid for all
 	slh uint16 = 0x02 // slash
 	dig uint16 = 0x03 // 0-9
 	col uint16 = 0x04 // :
@@ -48,6 +48,8 @@ const (
 	sp9 uint16 = 0x29 // @
 	sn0 uint16 = 0x30 // _
 	sn1 uint16 = 0x31 // +
+	sn2 uint16 = 0x32 // -
+	sn3 uint16 = 0x33 // .
 
 	eof uint16 = 0x40 // EOF
 )
@@ -59,17 +61,17 @@ var lookup = [257]uint16{
 	/* 10-17  DLE, DC1, DC2, DC3, DC4, NAK, SYN, ETB */ inv, inv, inv, inv, inv, inv, inv, inv,
 	/* 18-1F  CAN, EM,  SUB, ESC, FS,  GS,  RS,  US  */ inv, inv, inv, inv, inv, inv, inv, inv,
 	/* 21-27  SP ! " # $ % & '   */ inv, sp1, inv, sp2, sp3, sp4, sp5, sp6,
-	/* 28-2F   ( ) * + , - . /   */ inv, inv, inv, sn1, inv, vld, vld, slh,
-	/* 30-37   0 1 2 3 4 5 6 7   */ vld, vld, vld, vld, vld, vld, vld, vld,
-	/* 38-3F   8 9 : ; < = > ?   */ vld, vld, col, inv, inv, sp7, inv, sp8,
-	/* 40-47   @ A B C D E F G   */ sp9, vld, vld, vld, vld, vld, vld, vld,
-	/* 48-4F   H I J K L M N O   */ vld, vld, vld, vld, vld, vld, vld, vld,
-	/* 50-57   P Q R S T U V W   */ vld, vld, vld, vld, vld, vld, vld, vld,
-	/* 58-5F   X Y Z [ \ ] ^ _   */ vld, vld, vld, inv, inv, inv, inv, sn0,
-	/* 60-67   ` a b c d e f g   */ inv, vld, vld, vld, vld, vld, vld, vld,
-	/* 68-6F   h i j k l m n o   */ vld, vld, vld, vld, vld, vld, vld, vld,
-	/* 70-77   p q r s t u v w   */ vld, vld, vld, vld, vld, vld, vld, vld,
-	/* 78-7F   x y z { | } ~ DEL */ vld, vld, vld, inv, inv, inv, inv, inv,
+	/* 28-2F   ( ) * + , - . /   */ inv, inv, inv, sn1, inv, sn2, sn3, slh,
+	/* 30-37   0 1 2 3 4 5 6 7   */ wrd, wrd, wrd, wrd, wrd, wrd, wrd, wrd,
+	/* 38-3F   8 9 : ; < = > ?   */ wrd, wrd, col, inv, inv, sp7, inv, sp8,
+	/* 40-47   @ A B C D E F G   */ sp9, wrd, wrd, wrd, wrd, wrd, wrd, wrd,
+	/* 48-4F   H I J K L M N O   */ wrd, wrd, wrd, wrd, wrd, wrd, wrd, wrd,
+	/* 50-57   P Q R S T U V W   */ wrd, wrd, wrd, wrd, wrd, wrd, wrd, wrd,
+	/* 58-5F   X Y Z [ \ ] ^ _   */ wrd, wrd, wrd, inv, inv, inv, inv, sn0,
+	/* 60-67   ` a b c d e f g   */ inv, wrd, wrd, wrd, wrd, wrd, wrd, wrd,
+	/* 68-6F   h i j k l m n o   */ wrd, wrd, wrd, wrd, wrd, wrd, wrd, wrd,
+	/* 70-77   p q r s t u v w   */ wrd, wrd, wrd, wrd, wrd, wrd, wrd, wrd,
+	/* 78-7F   x y z { | } ~ DEL */ wrd, wrd, wrd, inv, inv, inv, inv, inv,
 	/* 80-87 */ inv, inv, inv, inv, inv, inv, inv, inv,
 	/* 88-8B */ inv, inv, inv, inv, inv, inv, inv, inv,
 	/* 90-97 */ inv, inv, inv, inv, inv, inv, inv, inv,
@@ -95,20 +97,23 @@ type Token struct {
 }
 
 type Lexer struct {
-	input      []byte
-	scheme     []byte
-	schemeWord []byte
-	schemeSep  []byte
-	host       []byte
-	path       []byte
-	params     []byte
-	pos        int
-	width      int
-	size       int
-	start      int
-	stateType  StateType
-	tokenType  TokenType
-	tokens     chan Token
+	input            []byte
+	scheme           []byte
+	schemeWord       []byte
+	schemeSep        []byte
+	host             []byte
+	path             []byte
+	params           []byte
+	schemeWordsCount int
+	hostWordsCount   int
+	pathWordsCount   int
+	pos              int
+	width            int
+	size             int
+	start            int
+	stateType        StateType
+	tokenType        TokenType
+	tokens           chan Token
 }
 
 func (obj *Lexer) run() {
@@ -120,19 +125,19 @@ func (obj *Lexer) run() {
 
 func (obj *Lexer) emit(t TokenType) {
 	// fullURL without host?
-	if obj.tokenType == TokenFullURL && len(obj.host) == 0 {
+	if obj.tokenType == TokenFullURL && (len(obj.host) == 0 || (obj.hostWordsCount+obj.pathWordsCount) < 4) {
 		obj.emitUpdate()
 		return
 	}
 
 	// pathURL without path?
-	if obj.tokenType == TokenPathURL && len(obj.path) < 2 {
+	if obj.tokenType == TokenPathURL && (obj.pathWordsCount < 3 || obj.size < 5 || lookup[obj.byteAt(0)] != slh) {
 		obj.emitUpdate()
 		return
 	}
 
 	// custom urls app:///path can be without host, and without path twitter://
-	if obj.tokenType == TokenCustomURL && len(obj.schemeSep) != 3 {
+	if obj.tokenType == TokenCustomURL && (obj.schemeWordsCount == 0 || len(obj.schemeSep) != 3) {
 		obj.emitUpdate()
 		return
 	}
@@ -145,8 +150,11 @@ func (obj *Lexer) emit(t TokenType) {
 	obj.emitUpdate()
 }
 
+func (obj *Lexer) byteAt(i int) byte {
+	return obj.input[obj.start+i]
+}
 func (obj *Lexer) emitUpdate() {
-	obj.setAt(obj.pos+1, obj.pos+1)
+	obj.setAt(obj.pos, obj.pos)
 	obj.resetTypes()
 	obj.resetSlices()
 }
@@ -168,6 +176,9 @@ func (obj *Lexer) resetSlices() {
 	obj.schemeSep = []byte{}
 	obj.host = []byte{}
 	obj.path = []byte{}
+	obj.pathWordsCount = 0
+	obj.hostWordsCount = 0
+	obj.schemeWordsCount = 0
 }
 
 func (l *Lexer) backup() {
@@ -221,8 +232,11 @@ func (l *Lexer) processSchemeValid(r byte, s uint16) bool {
 		l.startRelativePath(r)
 		return true
 	}
-	// valid, _
-	if s == vld || s == sn0 {
+	if s == wrd {
+		l.schemeWordsCount += 1
+	}
+	// valid, _, -, .
+	if s == wrd || s == sn0 || s == sn2 || s == sn3 {
 		l.scheme = append(l.scheme, r)
 		l.schemeWord = append(l.schemeWord, r)
 		return true
@@ -246,6 +260,8 @@ func (l *Lexer) startRelativePath(r byte) {
 		l.schemeWord = []byte{}
 		l.schemeSep = []byte{}
 		l.host = []byte{}
+		l.schemeWordsCount = 0
+		l.hostWordsCount = 0
 	}
 }
 
@@ -263,7 +279,6 @@ func (l *Lexer) processSchemeSepValid(r byte, s uint16) bool {
 			return true
 		}
 	}
-	l.pos -= 1
 	return false
 }
 
@@ -278,8 +293,11 @@ func (l *Lexer) processHostValid(r byte, s uint16) bool {
 		l.stateType = StatePath
 		return true
 	}
-	// valid, @, :, _
-	if s == vld || s == sp9 || s == col || s == sn0 {
+	if s == wrd {
+		l.hostWordsCount += 1
+	}
+	// valid, @, :, _, -, .
+	if s == wrd || s == sp9 || s == col || s == sn0 || s == sn2 || s == sn3 {
 		l.host = append(l.host, r)
 		return true
 	}
@@ -297,7 +315,12 @@ func (l *Lexer) processPathValid(r byte, s uint16) bool {
 		l.start = l.pos - 1
 		return true
 	}
-	if s == vld || s == slh || s == sp1 || s == sp4 || s == sp7 || s == sn0 {
+	if s == wrd {
+		l.path = append(l.path, r)
+		l.pathWordsCount += 1
+		return true
+	}
+	if s == slh || s == sp1 || s == sp4 || s == sp7 || s == sn0 || s == sn2 || s == sn3 {
 		l.path = append(l.path, r)
 		return true
 	}
@@ -320,7 +343,7 @@ func (l *Lexer) processParamsValid(r byte, s uint16) bool {
 
 func (l *Lexer) isValid(r byte) bool {
 	s := lookup[r]
-	// fmt.Printf("10: %v %v %v %v\n", r, s, l.stateType, l.tokenType)
+	// fmt.Printf("10: %v\t'%s'\t%v\t%v\t%v\n", r, string(r), s, l.stateType, l.tokenType)
 	switch l.stateType {
 	case StateScheme:
 		return l.processSchemeValid(r, s)
@@ -333,7 +356,7 @@ func (l *Lexer) isValid(r byte) bool {
 	case StateParams:
 		return l.processParamsValid(r, s)
 	}
-	return s == vld
+	return s == wrd
 }
 
 type stateFn func(*Lexer) stateFn
@@ -351,7 +374,6 @@ func lexText(l *Lexer) stateFn {
 		if l.isValid(r) {
 			continue
 		}
-
 		if l.size > 1 {
 			l.backup()
 		} else {
@@ -369,15 +391,15 @@ func lexText(l *Lexer) stateFn {
 }
 
 func isHttpWord(word []byte) bool {
-	return bytes.Equal(word, httpW)
+	return bytes.Equal(toLowerASCII(word), httpW)
 }
 
 func isHttpsWord(word []byte) bool {
-	return bytes.Equal(word, httpsW)
+	return bytes.Equal(toLowerASCII(word), httpsW)
 }
 
 func isValidAll(ch byte) bool {
-	return lookup[ch] == vld
+	return lookup[ch] == wrd
 }
 
 func NewLexer(input []byte) *Lexer {
@@ -388,4 +410,22 @@ func NewLexer(input []byte) *Lexer {
 	}
 	go l.run()
 	return l
+}
+
+func toLowerASCII(b []byte) []byte {
+	// Create a new byte slice to hold the lowercase result
+	lower := make([]byte, len(b))
+
+	for i, v := range b {
+		// Check if the byte is an uppercase letter
+		if v >= 'A' && v <= 'Z' {
+			// Convert to lowercase by adding 32
+			lower[i] = v + 32
+		} else {
+			// Keep the byte unchanged if it's not an uppercase letter
+			lower[i] = v
+		}
+	}
+
+	return lower
 }

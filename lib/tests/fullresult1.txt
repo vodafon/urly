@@ -37,6 +37,3 @@ https://www.site.it/yourpets/ref=pp_aapp_nav
 http://abc-domain.com/123
 /api/graphql
 https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toISOString
-/.git
-/graphql
-HTTPs://site.com/path?param=1
