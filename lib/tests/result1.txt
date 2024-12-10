@@ -31,3 +31,9 @@ android-app:///webview?abc=13
 android-app:///web
 api/graphql
 https://www.youtube.com/iframe_api
+twitter://
+https://example.com.uk/abc_bcd-eu/?x-a=a_b
+/abc//path
+/.
+https://user_name@example.com
+https://www.site.it/yourpets/ref=pp_aapp_nav

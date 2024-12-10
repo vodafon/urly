@@ -4,8 +4,11 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
+	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/vodafon/urly/lib"
 )
@@ -17,12 +20,55 @@ var (
 func main() {
 	flag.Parse()
 	if *flagInput == "" {
-		processStdin()
+		processReader(os.Stdin)
+		return
+	}
+
+	path := *flagInput
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		log.Fatalf("The path %s does not exist.\n", path)
+		return
+	}
+	if err != nil {
+		log.Fatalf("Error checking the path: %v\n", err)
+		return
+	}
+
+	if info.IsDir() {
+		processDir(path)
+	} else {
+		processFile(path)
 	}
 }
 
-func processStdin() {
-	scanner := bufio.NewScanner(os.Stdin)
+func processDir(path string) {
+	files, err := os.ReadDir(path)
+	if err != nil {
+		log.Fatalf("Error reading directory: %v\n", err)
+		return
+	}
+	for _, file := range files {
+		if file.IsDir() {
+			processDir(filepath.Join(path, file.Name()))
+		} else {
+			processFile(filepath.Join(path, file.Name()))
+		}
+	}
+}
+
+func processFile(path string) {
+	reader, err := os.Open(path)
+	if err != nil {
+		log.Fatalf("read file %s error: %v\n", path, err)
+	}
+	defer reader.Close()
+
+	processReader(reader)
+}
+
+func processReader(reader io.Reader) {
+	scanner := bufio.NewScanner(reader)
 	scanner.Split(bufio.ScanLines)
 
 	for scanner.Scan() {

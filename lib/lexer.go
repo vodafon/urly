@@ -126,13 +126,13 @@ func (obj *Lexer) emit(t TokenType) {
 	}
 
 	// pathURL without path?
-	if obj.tokenType == TokenPathURL && len(obj.path) == 0 {
+	if obj.tokenType == TokenPathURL && len(obj.path) < 2 {
 		obj.emitUpdate()
 		return
 	}
 
-	// custom urls app:///path can be without host
-	if obj.tokenType == TokenCustomURL && (len(obj.path) == 0 && len(obj.host) == 0) {
+	// custom urls app:///path can be without host, and without path twitter://
+	if obj.tokenType == TokenCustomURL && len(obj.schemeSep) != 3 {
 		obj.emitUpdate()
 		return
 	}
@@ -147,22 +147,27 @@ func (obj *Lexer) emit(t TokenType) {
 
 func (obj *Lexer) emitUpdate() {
 	obj.setAt(obj.pos+1, obj.pos+1)
+	obj.resetTypes()
+	obj.resetSlices()
 }
 
 func (obj *Lexer) setAt(start, pos int) {
 	obj.start = start
 	obj.pos = pos
-	obj.size = 0
+	obj.size = pos - start
+}
+
+func (obj *Lexer) resetTypes() {
 	obj.stateType = StateScheme
 	obj.tokenType = TokenFullURL
+}
+
+func (obj *Lexer) resetSlices() {
 	obj.scheme = []byte{}
 	obj.schemeWord = []byte{}
 	obj.schemeSep = []byte{}
 	obj.host = []byte{}
 	obj.path = []byte{}
-}
-
-func (obj *Lexer) addType(t StateType) {
 }
 
 func (l *Lexer) backup() {
@@ -193,6 +198,9 @@ func (l *Lexer) next() uint16 {
 func (l *Lexer) processSchemeValid(r byte, s uint16) bool {
 	// fmt.Printf("SV1: %v %v %v\n", r, s, s == col)
 	if s == col {
+		if len(l.scheme) == 0 {
+			return false
+		}
 		l.schemeSep = append(l.schemeSep, r)
 		l.schemeWord = []byte{}
 		l.stateType = StateSchemeSep
@@ -270,8 +278,8 @@ func (l *Lexer) processHostValid(r byte, s uint16) bool {
 		l.stateType = StatePath
 		return true
 	}
-	// valid, @, :
-	if s == vld || s == sp9 || s == col {
+	// valid, @, :, _
+	if s == vld || s == sp9 || s == col || s == sn0 {
 		l.host = append(l.host, r)
 		return true
 	}
@@ -285,7 +293,11 @@ func (l *Lexer) processHostValid(r byte, s uint16) bool {
 }
 
 func (l *Lexer) processPathValid(r byte, s uint16) bool {
-	if s == vld || s == slh || s == sp1 || s == sp4 || s == sn0 {
+	if s == slh && len(l.path) == 1 && l.tokenType == TokenPathURL {
+		l.start = l.pos - 1
+		return true
+	}
+	if s == vld || s == slh || s == sp1 || s == sp4 || s == sp7 || s == sn0 {
 		l.path = append(l.path, r)
 		return true
 	}
@@ -299,7 +311,11 @@ func (l *Lexer) processPathValid(r byte, s uint16) bool {
 }
 
 func (l *Lexer) processParamsValid(r byte, s uint16) bool {
-	return s != inv
+	if s != inv {
+		l.params = append(l.params, r)
+		return true
+	}
+	return false
 }
 
 func (l *Lexer) isValid(r byte) bool {

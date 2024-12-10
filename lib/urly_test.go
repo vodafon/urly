@@ -4,6 +4,7 @@ package lib
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"testing"
 )
@@ -23,7 +24,39 @@ func TestExtractURL(t *testing.T) {
 	ret, err := ExtractURL(input)
 
 	// Check that the extracted URL matches the expected one
-	if !bytes.Equal(ret, result) {
-		t.Errorf("expected %s but got %s", result, ret)
+	if !compareByteSlices(ret, result) {
+		t.Errorf("not passed")
 	}
+}
+
+func compareByteSlices(input, result []byte) bool {
+	// Split the byte slices into lines
+	inputLines := bytes.Split(input, []byte{'\n'})
+	resultLines := bytes.Split(result, []byte{'\n'})
+
+	// Determine the maximum number of lines to compare
+	maxLines := len(inputLines)
+	if len(resultLines) > maxLines {
+		maxLines = len(resultLines)
+	}
+
+	ret := true
+	// Compare lines
+	for i := 0; i < maxLines; i++ {
+		var inputLine, resultLine []byte
+		if i < len(inputLines) {
+			inputLine = inputLines[i]
+		}
+		if i < len(resultLines) {
+			resultLine = resultLines[i]
+		}
+
+		// Compare the lines
+		if !bytes.Equal(inputLine, resultLine) {
+			fmt.Printf("Line %d:\nInput: %s\nResult: %s\n", i+1, inputLine, resultLine)
+			ret = false
+		}
+	}
+
+	return ret
 }
