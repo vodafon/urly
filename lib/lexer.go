@@ -140,6 +140,11 @@ func (obj *Lexer) run() {
 }
 
 func (obj *Lexer) emit(t TokenType) {
+	if obj.size > 1000 {
+		obj.emitUpdate()
+		return
+	}
+
 	// fullURL without host?
 	if obj.tokenType == TokenFullURL && (len(obj.host) == 0 || (obj.hostWordsCount+obj.pathWordsCount) < 4) {
 		obj.emitUpdate()
