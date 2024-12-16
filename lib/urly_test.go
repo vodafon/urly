@@ -53,7 +53,7 @@ func compareByteSlices(input, result []byte) bool {
 
 		// Compare the lines
 		if !bytes.Equal(inputLine, resultLine) {
-			fmt.Printf("Line %d:\nInput: %s\nResult: %s\n", i+1, inputLine, resultLine)
+			fmt.Printf("Line %d:\nGOT: %s\nEXP: %s\n", i+1, inputLine, resultLine)
 			ret = false
 		}
 	}

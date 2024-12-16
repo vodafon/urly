@@ -64,3 +64,4 @@ aaaaaaaaaaaaHTTPs://site.com/path?param=1
 /PCKpm3Ylhe4wlGVBRbo
 /WRSiteInterceptEngine/MobileXmdDcfEval
 /WeRy177JKll98RanDoMsTriNg333WiThPaRaMs/?x=1
+define("default/ui/adminTools/AdminContentFilter")

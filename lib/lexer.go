@@ -154,7 +154,7 @@ func (obj *Lexer) emit(t TokenType) {
 	// pathURL without path?
 	if obj.tokenType == TokenPathURL {
 		// fmt.Printf("30: '%s': %v\n", calculateComplexity(obj.pathWordsComplexity, obj.pathWordsCount))
-		if obj.pathWordsCount < 3 || obj.size < 5 || lookup[obj.byteAt(0)] != slh ||
+		if obj.pathWordsCount < 3 || obj.size < 5 ||
 			(len(obj.params) == 0 && calculateComplexity(obj.pathWordsComplexity, obj.pathWordsCount) > 3.3) {
 			obj.emitUpdate()
 			return
@@ -290,6 +290,9 @@ func isAlphaNumeric(s uint16) bool {
 }
 
 func (l *Lexer) startRelativePath(r byte) {
+	if len(l.schemeSep) == 0 {
+		l.path = append(l.path, l.schemeWord...)
+	}
 	l.path = append(l.path, r)
 	l.stateType = StatePath
 	if l.tokenType == TokenFullURL {
@@ -303,6 +306,20 @@ func (l *Lexer) startRelativePath(r byte) {
 		l.schemeWordsCount = 0
 		l.hostWordsCount = 0
 	}
+}
+
+func prevSlashPath(p []byte) []byte {
+	np := []byte{}
+	for _, v := range p {
+		s := lookup[v]
+		// word, ., -, _
+		if isAlphaNumeric(s) || s == sn0 || s == sn2 || s == sn3 {
+			np = append(np, v)
+		} else {
+			np = []byte{}
+		}
+	}
+	return np
 }
 
 func (l *Lexer) processSchemeSepValid(r byte, s uint16) bool {

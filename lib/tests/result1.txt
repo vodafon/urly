@@ -36,6 +36,7 @@ https://user_name@example.com
 https://www.site.it/yourpets/ref=pp_aapp_nav
 http://abc-domain.com/123
 /api/graphql
+api/graphql
 https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toISOString
 /.git
 /graphql
@@ -45,3 +46,4 @@ HTTPs://site.com/path?param=1
 /accesscontextmanager.googleapis.com/accessPolicies/MY_POLICY_ID/accessLevels/MY_LEVEL
 /WRSiteInterceptEngine/MobileXmdDcfEval
 /WeRy177JKll98RanDoMsTriNg333WiThPaRaMs/?x=1
+default/ui/adminTools/AdminContentFilter
