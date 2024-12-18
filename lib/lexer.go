@@ -145,6 +145,9 @@ func (obj *Lexer) emit(t TokenType) {
 		return
 	}
 
+	startWith := obj.byteAt(0)
+	startWithType := lookup[startWith]
+
 	// fullURL without host?
 	if obj.tokenType == TokenFullURL && (len(obj.host) == 0 || (obj.hostWordsCount+obj.pathWordsCount) < 4) {
 		obj.emitUpdate()
@@ -154,7 +157,7 @@ func (obj *Lexer) emit(t TokenType) {
 	// pathURL without path?
 	if obj.tokenType == TokenPathURL {
 		// fmt.Printf("30: '%s': %v\n", calculateComplexity(obj.pathWordsComplexity, obj.pathWordsCount))
-		if obj.pathWordsCount < 3 || obj.size < 5 ||
+		if obj.pathWordsCount < 3 || obj.size < 5 || (startWithType != slh && !isAlphaNumeric(startWithType)) ||
 			(len(obj.params) == 0 && calculateComplexity(obj.pathWordsComplexity, obj.pathWordsCount) > 3.3) {
 			obj.emitUpdate()
 			return
@@ -162,7 +165,7 @@ func (obj *Lexer) emit(t TokenType) {
 	}
 
 	// custom urls app:///path can be without host, and without path twitter://
-	if obj.tokenType == TokenCustomURL && (obj.schemeWordsCount == 0 || len(obj.schemeSep) != 3) {
+	if obj.tokenType == TokenCustomURL && ((obj.schemeWordsCount == 0 || len(obj.schemeSep) != 3) || !isAlphaNumeric(startWithType)) {
 		obj.emitUpdate()
 		return
 	}
@@ -289,9 +292,23 @@ func isAlphaNumeric(s uint16) bool {
 	return s == lwr || s == uwr || s == dig
 }
 
+func (l *Lexer) addSchemeToPath() {
+	for _, v := range l.schemeWord {
+		s := lookup[v]
+		l.path = append(l.path, v)
+		if isAlphaNumeric(s) {
+			l.pathWordsCount += 1
+			if l.pathPrevWordClass != inv && l.pathPrevWordClass != s {
+				l.pathWordsComplexity += 10
+			}
+			l.pathPrevWordClass = s
+		}
+	}
+}
+
 func (l *Lexer) startRelativePath(r byte) {
 	if len(l.schemeSep) == 0 {
-		l.path = append(l.path, l.schemeWord...)
+		l.addSchemeToPath()
 	}
 	l.path = append(l.path, r)
 	l.stateType = StatePath

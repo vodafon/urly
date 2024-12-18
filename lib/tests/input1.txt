@@ -65,3 +65,8 @@ aaaaaaaaaaaaHTTPs://site.com/path?param=1
 /WRSiteInterceptEngine/MobileXmdDcfEval
 /WeRy177JKll98RanDoMsTriNg333WiThPaRaMs/?x=1
 define("default/ui/adminTools/AdminContentFilter")
+0BmVwAZwUWrQO07tftVlylPJkAaLQMjYIGHcjdtzeaJGnNabtBpWqwOYCtWYeiA/ttYHL3
+0iSRhq7xDvJUnEII7bNuwUaardmFvW/DEKP
+_/AppsFlyer_6.15.2
+./base
+.abc://a
